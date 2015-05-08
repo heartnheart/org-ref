@@ -584,8 +584,8 @@ Format according to the type in `org-ref-bibliography-entry-format'."
     ;; change double dash to single dash
     (setq output (replace-regexp-in-string "--" "-" output))
     (setq output (replace-regexp-in-string " <a href=\"http://dx\\.doi\\.org/\">doi</a>\\." "" output))
-    (format "<li><a id=\"%s\">[%s] %s</a></li>"
-	    key key output)))
+    (format "<li><a id=\"%s\">%s</a></li>"
+	     key output)))
 
 (defun org-ref-get-html-bibliography ()
   "Create an html bibliography when there are keys."
