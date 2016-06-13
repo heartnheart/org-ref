@@ -839,6 +839,7 @@ we open it, otherwise prompt for which one to open."
     ((eq format 'ascii) (org-ref-get-ascii-bibliography))
     ((eq format 'odt) (org-ref-get-odt-bibliography))
     ((eq format 'html) (org-ref-get-html-bibliography))
+    ((eq format 'md) (org-ref-get-html-bibliography))
     ((eq format 'latex)
      ;; write out the latex bibliography command
      (format "\\bibliography{%s}"
