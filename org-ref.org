@@ -9,8 +9,11 @@
 #+latex_header_extra: \newglossaryentry{acronym}{name={acronym},description={An acronym is an abbreviation used as a word which is formed from the initial components in a phrase or a word. Usually these components are individual letters (as in NATO or laser) or parts of words or names (as in Benelux)}}
 #+latex_header_extra: \newacronym{tla}{TLA}{Three Letter Acronym}
 
+#+BEGIN_LaTeX
 \maketitle
 \tableofcontents
+#+END_LaTeX
+
 
 
 * Introduction to org-ref
