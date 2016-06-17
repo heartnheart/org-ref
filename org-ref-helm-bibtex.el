@@ -22,15 +22,10 @@
 ;; This file defines the completion engine for org-ref using `helm-bibtex'.
 
 ;;; Code:
+(require 'helm-config)
+(require 'helm)
+(require 'helm-bibtex)
 (require 'org-ref-helm)
-(unless (require 'helm-bibtex nil t)
-  (message "Org-ref is installing `helm-bibtex'...")
-  (let ((package-archives '(("gnu"         . "http://elpa.gnu.org/packages/")
-			    ("melpa" . "http://melpa.org/packages/"))))
-    (package-initialize)
-    (package-refresh-contents)
-    (package-install 'helm-bibtex))
-  (require 'helm-bibtex))
 
 ;;;###autoload
 (defun org-ref-bibtex-completion-completion ()
@@ -163,16 +158,31 @@ CANDIDATE is ignored."
 User is prompted for tags.  This function is called from `helm-bibtex'.
 Argument CANDIDATES helm candidates."
   (message "")
-  (let ((keywords (read-string "Keywords (comma separated): ")))
-    (cl-loop for key in (helm-marked-candidates)
-             do
-             (save-window-excursion
-               (bibtex-completion-show-entry key)
-               (bibtex-set-field
-                "keywords"
-                (concat
-                 keywords
-                 ", " (bibtex-autokey-get-field "keywords")))
+  (let* ((keys (helm-marked-candidates))
+	 (entry (bibtex-completion-get-entry (car keys)))
+	 (field (cdr (assoc-string "keywords" entry)))
+	 (value (when field (replace-regexp-in-string "^{\\|}$" "" field)))
+	 (keywords (read-string "Keywords (comma separated): " (when value
+								 (concat value ", ")))))
+    (cl-loop for key in keys
+	     do
+	     (save-window-excursion
+	       (bibtex-completion-show-entry key)
+	       ;; delete keyword field if empty
+	       (if (string-match "^\s-*" keywords)
+		   (save-restriction
+		     (bibtex-narrow-to-entry)
+		     (goto-char (car (cdr (bibtex-search-forward-field "keywords" t))))
+		     (bibtex-kill-field))
+		 (bibtex-set-field
+		  "keywords"
+		  (concat
+		   (if (listp keywords)
+		       (if (string-match value keywords)
+			   (and (replace-match "")
+				(mapconcat 'identity keywords ", "))
+			 (mapconcat 'identity keywords ", "))
+		     keywords))))
 	       (when (looking-back ", ")
 	       	 (delete-backward-char 2))
 	       (save-buffer)))))
