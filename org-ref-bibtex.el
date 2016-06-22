@@ -60,6 +60,9 @@
 (require 'message)
 (require 's)
 
+(require 'org-ref-citeproc)
+(require 'unsrt)
+
 ;;; Code:
 
 ;;* Custom variables
@@ -635,7 +638,9 @@ _S_: Sentence case
   ("d" bibtex-kill-entry)
   ("L" org-ref-clean-bibtex-entry)
   ("y" (kill-new  (bibtex-autokey-get-field "=key=")))
-  ("f" bibtex-copy-summary-as-kill)
+  ("f" (progn
+	 (bibtex-beginning-of-entry)
+	 (kill-new (orhc-formatted-citation (bibtex-parse-entry t)))))
   ("k" helm-tag-bibtex-entry)
   ("K" (lambda ()
          (interactive)
@@ -644,7 +649,8 @@ _S_: Sentence case
                        (bibtex-autokey-get-field "keywords"))
           t)))
   ("b" org-ref-open-in-browser)
-  ("r" (lambda () (interactive)
+  ("r" (lambda ()
+	 (interactive)
          (bibtex-beginning-of-entry)
          (bibtex-kill-entry)
          (find-file (ido-completing-read
@@ -1076,11 +1082,11 @@ Update the cache if necessary."
 
 ;;* org-ref bibtex formatted citation
 (defun orhc-formatted-citation (entry)
-  "Get a formatted string for entry."
+  "Get a formatted string for ENTRY."
   (let* ((adaptive-fill-function '(lambda () "    "))
 	 (indent-tabs-mode nil)
 	 (entry-type (downcase
-		      (cdr (assoc "=type=" (cdr entry)))))
+		      (cdr (assoc "=type=" entry))))
 	 (entry-styles (cdr (assoc 'entries bibliography-style)))
 	 (entry-fields
 	  (progn

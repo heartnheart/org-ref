@@ -25,6 +25,8 @@
 ;;; Code:
 (require 'ivy)
 (require 'org-ref-bibtex)
+(require 'org-ref-citeproc)
+(require 'unsrt)  			; a default citation style.
 
 ;;;###autoload
 (defun org-ref-ivy-cite-completion ()
@@ -42,9 +44,8 @@
     (kbd org-ref-insert-cite-key)
     org-ref-insert-link-function))
 
+;; setup the functions and keybinding
 (org-ref-ivy-cite-completion)
-
-(define-key org-mode-map (kbd "C-c C-r") 'ivy-resume)
 
 ;; messages in minibuffer interfere with hydra menus.
 (setq org-ref-show-citation-on-enter nil)
@@ -72,9 +73,14 @@
 
 (defun or-ivy-bibtex-insert-cite (entry)
   "Insert a citation for ENTRY.
+If `org-ref-ivy-cite-marked-candidates' is non-nil then they are added instead of ENTRY.
 ENTRY is selected from `orhc-bibtex-candidates'."
   (with-ivy-window
-    (org-ref-insert-key-at-point (list (cdr (assoc "=key=" entry))))))
+    (if org-ref-ivy-cite-marked-candidates
+	(loop for entry in org-ref-ivy-cite-marked-candidates
+	      do
+	      (org-ref-insert-key-at-point (list (cdr (assoc "=key=" entry)))))
+      (org-ref-insert-key-at-point (list (cdr (assoc "=key=" entry)))))))
 
 
 (defun or-ivy-bibtex-open-pdf (entry)
@@ -154,21 +160,24 @@ ENTRY is selected from `orhc-bibtex-candidates'."
   "Insert selected ENTRY and attach pdf file to an email.
 Create email unless called from an email."
   (with-ivy-window
-    (unless (memq major-mode '(message-mode mu4e-compose-mode))
-      (compose-mail))
-    (save-window-excursion
-      (or-ivy-bibtex-open-entry entry)
-      (bibtex-copy-entry-as-kill))
-    (message-goto-body)
-    (insert (pop bibtex-entry-kill-ring))
-    (insert "\n")
-    (let ((pdf (expand-file-name
-		(format "%s.pdf"
-			(cdr (assoc "=key=" entry)))
-		org-ref-pdf-directory)))
-      (if (file-exists-p pdf)
-	  (mml-attach-file pdf)))
-    (message-goto-to)))
+    (let ((goto-to nil))
+      (unless (memq major-mode '(message-mode mu4e-compose-mode))
+	(setq goto-to t)
+	(compose-mail)
+	(message-goto-body))
+      (save-window-excursion
+	(or-ivy-bibtex-open-entry entry)
+	(bibtex-copy-entry-as-kill))
+      (insert (pop bibtex-entry-kill-ring))
+      (insert "\n")
+      (let ((pdf (expand-file-name
+		  (format "%s.pdf"
+			  (cdr (assoc "=key=" entry)))
+		  org-ref-pdf-directory)))
+	(if (file-exists-p pdf)
+	    (mml-attach-file pdf)))
+      (when goto-to
+	(message-goto-to)))))
 
 
 (defun or-ivy-bibtex-formatted-citation (entry)
@@ -194,7 +203,9 @@ Create email unless called from an email."
 
 
 (defun or-ivy-bibtex-add-entry (entry)
-  "Open a bibliography file and move point to the end, in order to add a new bibtex entry. ENTRY is selected from `orhc-bibtex-candidates' but ignored."
+  "Open a bibliography file and move point to the end, in order
+to add a new bibtex entry. ENTRY is selected from
+`orhc-bibtex-candidates' but ignored."
   (ivy-read "bibtex file: " org-ref-bibtex-files
 	    :require-match t
 	    :action 'find-file
@@ -277,40 +288,24 @@ Create email unless called from an email."
 (defun org-ref-ivy-mark-candidate () 
   "Add current candidate to `org-ref-ivy-cite-marked-candidates'.
 If candidate is already in, remove it."
-  (interactive)
-  
+  (interactive) 
   (let ((cand (or (assoc ivy--current (ivy-state-collection ivy-last))
 		  ivy--current)))
     (if (-contains? org-ref-ivy-cite-marked-candidates cand)
 	;; remove it from the marked list
-	(progn
-	  (setf (car cand) (propertize (car cand) 'face nil))
-	  (setq org-ref-ivy-cite-marked-candidates
-		(-remove-item cand org-ref-ivy-cite-marked-candidates)))
+	(setq org-ref-ivy-cite-marked-candidates
+	      (-remove-item cand org-ref-ivy-cite-marked-candidates))
       
       ;; add to list
       (setq org-ref-ivy-cite-marked-candidates
-	    (append org-ref-ivy-cite-marked-candidates (list cand)))
-      (setf (car cand) (propertize (car cand) 'face 'font-lock-warning-face))))
+	    (append org-ref-ivy-cite-marked-candidates (list cand)))))
   
-  (setf (ivy-state-collection ivy-last)
-	(-filter (lambda (x)
-		   (-contains? ivy--old-cands (car x)))
-		 (ivy-state-collection ivy-last)))
-  (setf (ivy-state-preselect ivy-last) ivy--current)
-  (ivy--reset-state ivy-last))
-
-
-(defvar org-ref-ivy-saved nil
-  "stores entries when marked candidates are restored.")
+  (ivy-next-line))
 
 
 (defun org-ref-ivy-show-marked-candidates ()
   "Show marked candidates."
-  (interactive)
-  (setq org-ref-ivy-saved (-filter (lambda (x)
-				     (-contains? ivy--old-cands (car x)))
-				   (ivy-state-collection ivy-last)))
+  (interactive) 
   (setf (ivy-state-collection ivy-last) org-ref-ivy-cite-marked-candidates)
   (setf (ivy-state-preselect ivy-last) ivy--current)
   (ivy--reset-state ivy-last))
@@ -320,8 +315,7 @@ If candidate is already in, remove it."
   "Show all the candidates."
   (interactive)
   (setf (ivy-state-collection ivy-last)
-	org-ref-ivy-saved
-	org-ref-ivy-saved nil) 
+	(orhc-bibtex-candidates)) 
   (ivy--reset-state ivy-last))
 
 ;; * org-ref-cite keymap
@@ -370,10 +364,6 @@ prefix ARG is used, which uses `org-ref-default-bibliography'."
 			       (org-ref-find-bibliography)))
   (setq org-ref-ivy-cite-marked-candidates '())
 
-  (mapcar (lambda (cand)
-	    (setf (car cand) (propertize (car cand) 'face nil)))
-	  (orhc-bibtex-candidates))
-
   (ivy-read "Open: " (orhc-bibtex-candidates)
 	    :require-match t
 	    :keymap org-ref-ivy-cite-keymap
@@ -381,10 +371,21 @@ prefix ARG is used, which uses `org-ref-default-bibliography'."
 	    :action 'or-ivy-bibtex-insert-cite
 	    :caller 'org-ref-ivy-insert-cite-link))
 
+
 (ivy-set-actions
  'org-ref-ivy-insert-cite-link
  org-ref-ivy-cite-actions)
 
+
+(defun org-ref-ivy-cite-transformer (s)
+  "Make entry red if it is marked."
+  (if (-contains? (mapcar 'car org-ref-ivy-cite-marked-candidates) s)
+      (propertize s 'face 'font-lock-warning-face)
+    (propertize s 'face s)))
+
+(ivy-set-display-transformer
+ 'org-ref-ivy-insert-cite-link
+ 'org-ref-ivy-cite-transformer )
 
 
 (defun org-ref-ivy-insert-label-link ()
@@ -410,8 +411,8 @@ prefix ARG is used, which uses `org-ref-default-bibliography'."
   "
 _p_: Open pdf     _w_: WOS          _g_: Google Scholar _K_: Copy citation to clipboard
 _u_: Open url     _r_: WOS related  _P_: Pubmed         _k_: Copy key to clipboard
-_n_: Open notes   _c_: WOS citing   _C_: Crossref       _f_: Copy bibtex entry to file
-_o_: Open entry   _e_: Email entry and pdf              _q_: quit
+_n_: Open notes   _c_: WOS citing   _C_: Crossref       _f_: Copy formatted entry 
+_o_: Open entry   _e_: Email entry  ^ ^                 _q_: quit
 "
   ("o" org-ref-open-citation-at-point nil)
   ("p" org-ref-open-pdf-at-point nil)
@@ -428,14 +429,40 @@ _o_: Open entry   _e_: Email entry and pdf              _q_: quit
 	 (kill-new
 	  (car (org-ref-get-bibtex-key-and-file))))
    nil)
-  ("f" org-ref-copy-entry-at-point-to-file nil)
-
-  ("e" (save-excursion
+  ("f" (save-window-excursion
 	 (org-ref-open-citation-at-point)
-	 (org-ref-email-bibtex-entry))
+	 (kill-new (orhc-formatted-citation (bibtex-parse-entry t))))
+   nil)
+
+  ("e" (kill-new (save-excursion
+		   (org-ref-open-citation-at-point)
+		   (org-ref-email-bibtex-entry)))
    nil)
   ("q" nil))
 
+
+
+(defun org-ref-ivy-onclick-actions ()
+  "An alternate click function that uses ivy for action selection.
+Each action is taken from `org-ref-ivy-cite-actions'. Each action
+should act on a bibtex entry that matches the key in
+`orhc-bibtex-candidates'. Set `org-ref-cite-onclick-function' to
+this function to use it."
+  (interactive)
+  (ivy-read
+   "action: "
+   (loop for i from 0
+	 for (char func s) in 
+	 org-ref-ivy-cite-actions
+	 collect (cons (format "%2s. %s" i s) func))
+   :action (lambda (f)
+	     (let* ((key (car (org-ref-get-bibtex-key-and-file))) 
+		    (entry (cdr (elt (orhc-bibtex-candidates)
+				     (-elem-index
+				      key
+				      (loop for entry in (orhc-bibtex-candidates)
+					    collect (cdr (assoc "=key=" entry )))))))) 
+	       (funcall f entry)))))
 
 (provide 'org-ref-ivy-cite)
 ;;; org-ref-ivy-cite.el ends here
