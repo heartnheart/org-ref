@@ -6,7 +6,7 @@
 ;; URL: https://github.com/jkitchin/org-ref
 ;; Version: 0.8.1
 ;; Keywords: org-mode, cite, ref, label
-;; Package-Requires: ((dash "2.11.0") (ivy "0.8.0") (hydra "0.13.2") (key-chord "0") (s "1.10.0") (f "0.18.0") (emacs "24.4"))
+;; Package-Requires: ((dash "2.11.0") (ivy "0.8.0") (hydra "0.13.2") (key-chord "0") (s "1.10.0") (f "0.18.0") (parsebib "0") (emacs "24.4"))
 
 ;; This file is not currently part of GNU Emacs.
 
@@ -25,7 +25,11 @@
 
 ;;; Commentary:
 
-(require 'org-ref-core)
+
+(setq org-ref-completion-library 'org-ref-ivy-cite)
+
+(require 'org-ref-ivy-cite)
+
 (provide 'org-ref-ivy)
 
 ;;; org-ref-ivy.el ends here

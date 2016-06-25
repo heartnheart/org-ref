@@ -202,9 +202,9 @@ Create email unless called from an email."
   (kill-new (or-ivy-bibtex-formatted-citation entry)))
 
 
-(defun or-ivy-bibtex-add-entry (entry)
+(defun or-ivy-bibtex-add-entry (_)
   "Open a bibliography file and move point to the end, in order
-to add a new bibtex entry. ENTRY is selected from
+to add a new bibtex entry. The arg is selected from
 `orhc-bibtex-candidates' but ignored."
   (ivy-read "bibtex file: " org-ref-bibtex-files
 	    :require-match t
@@ -262,8 +262,8 @@ to add a new bibtex entry. ENTRY is selected from
   (setf (ivy-state-collection ivy-last)
 	(cl-sort (copy-sequence (ivy-state-collection ivy-last))
 		 (lambda (a b)
-		   (let ((y1 (string-to-int (or (cdr (assoc "year" a)) "0")))
-			 (y2 (string-to-int (or (cdr (assoc "year" b)) "0"))))
+		   (let ((y1 (string-to-number (or (cdr (assoc "year" a)) "0")))
+			 (y2 (string-to-number (or (cdr (assoc "year" b)) "0"))))
 		     (< y1 y2)))))
   (setf (ivy-state-preselect ivy-last) ivy--current)
   (ivy--reset-state ivy-last))
@@ -274,8 +274,8 @@ to add a new bibtex entry. ENTRY is selected from
   (setf (ivy-state-collection ivy-last)
 	(cl-sort (copy-sequence (ivy-state-collection ivy-last))
 		 (lambda (a b)
-		   (let ((y1 (string-to-int (or (cdr (assoc "year" a)) "0")))
-			 (y2 (string-to-int (or (cdr (assoc "year" b)) "0"))))
+		   (let ((y1 (string-to-number (or (cdr (assoc "year" a)) "0")))
+			 (y2 (string-to-number (or (cdr (assoc "year" b)) "0"))))
 		     (> y1 y2)))))
   (setf (ivy-state-preselect ivy-last) ivy--current)
   (ivy--reset-state ivy-last))
@@ -347,9 +347,9 @@ If candidate is already in, remove it."
       (lambda ()
 	"Apply default action to all marked candidates."
 	(interactive)
-	(mapcar (ivy--get-action ivy-last)
-		org-ref-ivy-cite-marked-candidates)
-	(ivy-exit-with-action (function (lambda (x) nil)))))
+	(mapc (ivy--get-action ivy-last)
+	      org-ref-ivy-cite-marked-candidates)
+	(ivy-exit-with-action (function (lambda (_) nil)))))
     map)
   "A key map for `org-ref-ivy-insert-cite-link'.")
 
@@ -452,7 +452,7 @@ this function to use it."
   (ivy-read
    "action: "
    (loop for i from 0
-	 for (char func s) in 
+	 for (_ func s) in 
 	 org-ref-ivy-cite-actions
 	 collect (cons (format "%2s. %s" i s) func))
    :action (lambda (f)

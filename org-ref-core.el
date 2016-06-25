@@ -38,12 +38,14 @@
 (add-to-list 'load-path
 	     (expand-file-name
 	      "citeproc"
-	      (file-name-directory  (locate-library "org-ref"))))
+	      (file-name-directory
+	       (locate-library "org-ref-core"))))
 
 (add-to-list 'load-path
 	     (expand-file-name
 	      "citeproc/csl"
-	      (file-name-directory  (locate-library "org-ref"))))
+	      (file-name-directory
+	       (locate-library "org-ref-core"))))
 
 (require 'org-ref-bibtex)
 (require 'org-ref-utils)
@@ -113,7 +115,7 @@ Put a trailing / in the name."
 
 
 (defcustom org-ref-completion-library
-  'org-ref-helm-bibtex
+  nil
   "String for library to define completion functions.
 The completion library should provide functions for
 `org-ref-insert-link-function', `org-ref-insert-cite-function',
@@ -151,7 +153,9 @@ the citation link into the buffer."
 
 (defcustom org-ref-cite-completion-function
   nil
-  "Function to prompt for keys with completion.")
+  "Function to prompt for keys with completion."
+  :type 'function
+  :group 'org-ref)
 
 
 (defcustom org-ref-insert-label-function
@@ -2665,8 +2669,8 @@ See functions in `org-ref-clean-bibtex-entry-hook'."
     (when (-contains? org-ref-cite-types type)
       (setq key (org-ref-get-bibtex-key-under-cursor))
       (setq keys (org-ref-split-and-strip-string link-string))
-      (setq i (org-ref-list-index key keys))  ;; defined in org-ref
-      (if (> direction 0) ;; shift right
+      (setq i (org-ref-list-index key keys)) ;; defined in org-ref
+      (if (> direction 0)		     ;; shift right
           (org-ref-swap-keys i (+ i 1) keys)
         (org-ref-swap-keys i (- i 1) keys))
       (setq keys (mapconcat 'identity keys ","))
@@ -2685,7 +2689,8 @@ See functions in `org-ref-clean-bibtex-entry-hook'."
           " ")))
       ;; now go forward to key so we can move with the key
       (re-search-forward key)
-      (goto-char (match-beginning 0)))))
+      (goto-char (match-beginning 0))
+      (org-element-cache-reset))))
 
 ;; add hooks to make it work
 (add-hook 'org-shiftright-hook (lambda () (org-ref-swap-citation-link 1)))
