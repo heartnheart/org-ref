@@ -1628,7 +1628,7 @@ BIBINPUTS env var, and finally falling back to what the user has
 set in `org-ref-default-bibliography'"
   (catch 'result
     ;; If you call this in a bibtex file, assume we want this file
-    (when (string= (or (f-ext (or (buffer-file-name) "")) "")  "bib")
+    (when (and (buffer-file-name) (f-ext? (buffer-file-name)  "bib"))
       (setq org-ref-bibliography-files (list (buffer-file-name)))
       (throw 'result org-ref-bibliography-files))
 
